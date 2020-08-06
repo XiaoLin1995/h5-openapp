@@ -1,4 +1,4 @@
-# openApp
+# h5-openapp
 
 > 网页唤醒 APP
 
@@ -76,14 +76,14 @@ $('.btn').click(function() {
 </script>
 ```
 
-## Events
+## 事件
 | 事件名称 | 说明 | 回调参数 |
 | ------ | ------ | ------ |
 | onDisabled | 不满足深链接跳转条件, 在 `disabledApp` 参数中的 App 里打开时触发 | / |
 | onBeforeOpen | 在触发打开 App 逻辑前触发 | `disabledApp` 参数中的对应标示 |
 | onTimeout | 触发打开 App 逻辑后, 并且等待时间超过 `delay`, 未设置时, 默认跳转下载, 下载链接也未设置, 超时则无响应 | / |
 
-## Attributes
+## 参数
 | 参数 | 说明 | 类型 | 默认值 |
 | ------ | ------ | ------ | ----- |
 | scheme | scheme 跳转链接 (eg: myapp://path?key1=value1&key2=value2) | String | / |
