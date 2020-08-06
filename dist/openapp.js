@@ -105,6 +105,16 @@ return /******/ (function(modules) { // webpackBootstrap
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function isFunc(fun) {
+  return typeof fun === 'function';
+}
+
+// 获取浏览器信息
 function getBrowerInfo() {
   var ua = window.navigator.userAgent.toLowerCase();
   var isAndroid = /android/i.test(ua);
@@ -122,29 +132,24 @@ function getBrowerInfo() {
   };
 }
 
+// 静默打开 app
 function silenceOpen(url) {
   // iFrame 实测 Android 挺多浏览器不支持
-  // iFrame = document.createElement("iframe");
-  // iFrame.setAttribute("src", url);
-  // iFrame.setAttribute("style", "display:none;");
-  // iFrame.setAttribute("height", "0px");
-  // iFrame.setAttribute("width", "0px");
-  // iFrame.setAttribute("frameborder", "0");
-  // document.body.appendChild(iFrame);
-  // iFrame.parentNode.removeChild(iFrame);
-  // iFrame = null;
+  // iFrame = document.createElement('iframe')
+  // iFrame.setAttribute('src', url)
+  // iFrame.setAttribute('style', 'display:none')
+  // iFrame.setAttribute('height', '0px')
+  // iFrame.setAttribute('width', '0px')
+  // iFrame.setAttribute('frameborder', '0')
+  // document.body.appendChild(iFrame)
+  // iFrame.parentNode.removeChild(iFrame)
+  // iFrame = null
 
   window.location.href = url;
 }
 
-var _getBrowerInfo = getBrowerInfo(),
-    isIOS = _getBrowerInfo.isIOS,
-    isAndroid = _getBrowerInfo.isAndroid,
-    version = _getBrowerInfo.version;
-
-var isIOS9 = isIOS && parseInt(version) >= 9;
-
-function bindSchemaOpenFail(callback, delay) {
+// 通过延迟判断是否打开 app 失败
+function bindSchemeOpenFail(callback, delay) {
   var start = Date.now();
   var loadTimer = setTimeout(function () {
     if (document.hidden || document.webkitHidden) return;
@@ -155,27 +160,14 @@ function bindSchemaOpenFail(callback, delay) {
       clearTimeout(loadTimer);
     }
   };
-  document.addEventListener("visibilitychange", visibilitychange, false);
-  document.addEventListener("webkitvisibilitychange", visibilitychange, false);
-  window.addEventListener("pagehide", function () {
+  document.addEventListener('visibilitychange', visibilitychange, false);
+  document.addEventListener('webkitvisibilitychange', visibilitychange, false);
+  window.addEventListener('pagehide', function () {
     clearTimeout(loadTimer);
   }, false);
 }
 
-function unSchemaOpenApp(_ref) {
-  var ios = _ref.ios,
-      android = _ref.android,
-      other = _ref.other;
-
-  if (isIOS) {
-    if (ios) window.location.href = ios;
-  } else if (isAndroid) {
-    if (android) window.location.href = android;
-  } else {
-    if (other) window.location.href = other;
-  }
-}
-
+// 获取是不是在被禁用的 app 中, 有则返回 app 的浏览器标示
 function getDisabledApp(disabledApp) {
   var ua = window.navigator.userAgent.toLowerCase();
   for (var i = 0; i < disabledApp.length; i++) {
@@ -185,45 +177,159 @@ function getDisabledApp(disabledApp) {
   return '';
 }
 
-function openApp(_ref2) {
-  var scheme = _ref2.scheme,
-      links = _ref2.links,
-      _ref2$download = _ref2.download,
-      download = _ref2$download === undefined ? {
-    ios: '',
-    android: '',
-    other: ''
-  } : _ref2$download,
-      _ref2$delay = _ref2.delay,
-      delay = _ref2$delay === undefined ? 3000 : _ref2$delay,
-      _ref2$disabledApp = _ref2.disabledApp,
-      disabledApp = _ref2$disabledApp === undefined ? ['MicroMessenger', 'DingTalk'] : _ref2$disabledApp,
-      onDisabled = _ref2.onDisabled,
-      onOpenFailed = _ref2.onOpenFailed;
+var _getBrowerInfo = getBrowerInfo(),
+    isIOS = _getBrowerInfo.isIOS,
+    isAndroid = _getBrowerInfo.isAndroid,
+    version = _getBrowerInfo.version;
 
-  var app = getDisabledApp(disabledApp);
-  var isSchemaOpen = isIOS9 || app === '';
-  if (isSchemaOpen) {
-    silenceOpen(isIOS9 ? links : scheme);
-    bindSchemaOpenFail(function () {
-      if (onOpenFailed && typeof onOpenFailed === 'function') {
-        onOpenFailed();
-      } else {
-        unSchemaOpenApp(download);
-      }
-    }, delay);
-  } else {
-    if (onDisabled && typeof onDisabled === 'function') {
-      onDisabled(app);
-    } else {
-      unSchemaOpenApp(download);
-    }
+var OpenApp = function () {
+  function OpenApp(_ref) {
+    var _ref$scheme = _ref.scheme,
+        scheme = _ref$scheme === undefined ? '' : _ref$scheme,
+        _ref$deepLink = _ref.deepLink,
+        deepLink = _ref$deepLink === undefined ? '' : _ref$deepLink,
+        _ref$download = _ref.download,
+        download = _ref$download === undefined ? {
+      ios: '',
+      android: '',
+      other: ''
+    } : _ref$download,
+        _ref$delay = _ref.delay,
+        delay = _ref$delay === undefined ? 3000 : _ref$delay,
+        _ref$disabledApp = _ref.disabledApp,
+        disabledApp = _ref$disabledApp === undefined ? [] : _ref$disabledApp,
+        onDisabled = _ref.onDisabled,
+        onBeforeOpen = _ref.onBeforeOpen,
+        onTimeout = _ref.onTimeout;
+
+    _classCallCheck(this, OpenApp);
+
+    this.scheme = scheme;
+    this.deepLink = deepLink;
+    this.download = download;
+    this.delay = delay;
+    this.isDisabled = disabledApp.length > 0 ? getDisabledApp(disabledApp) : '';
+    this.onDisabled = onDisabled;
+    this.onBeforeOpen = onBeforeOpen;
+    this.onTimeout = onTimeout;
+    this.init();
   }
+
+  _createClass(OpenApp, [{
+    key: 'init',
+    value: function init() {
+      if (this.deepLink === '') {
+        this.notSetDeepLink();
+        return;
+      }
+      this.isSetDeepLink();
+    }
+
+    // 设置了深链接
+
+  }, {
+    key: 'isSetDeepLink',
+    value: function isSetDeepLink() {
+      var canDeepLink = isIOS && window.parseInt(version) >= 9; // ios9 以上支持深链接
+
+      if (canDeepLink) {
+        // 支持深链接
+        this.beforeSilenceOpen();
+        silenceOpen(this.deepLink);
+        return;
+      }
+
+      this.notSetDeepLink();
+    }
+
+    // 没有设置深链接
+
+  }, {
+    key: 'notSetDeepLink',
+    value: function notSetDeepLink() {
+      if (!isIOS && !isAndroid) {
+        this.downloadApp();
+        return;
+      }
+      if (this.isDisabled === '') {
+        this.beforeSilenceOpen();
+        silenceOpen(this.scheme);
+        this.schemeFailed();
+        return;
+      }
+      this.schemeDisabled();
+    }
+
+    // scheme 打开失败
+
+  }, {
+    key: 'schemeFailed',
+    value: function schemeFailed() {
+      var _this = this;
+
+      bindSchemeOpenFail(function () {
+        if (isFunc(_this.onTimeout)) {
+          _this.onTimeout();
+        } else {
+          _this.downloadApp();
+        }
+      }, this.delay);
+    }
+
+    // 在 scheme 跳转被禁用的 app 里
+
+  }, {
+    key: 'schemeDisabled',
+    value: function schemeDisabled() {
+      if (isFunc(this.onDisabled)) {
+        this.onDisabled(this.isDisabled);
+      } else {
+        this.downloadApp();
+      }
+    }
+
+    // 在执行跳转逻辑钱
+
+  }, {
+    key: 'beforeSilenceOpen',
+    value: function beforeSilenceOpen() {
+      if (isFunc(this.onBeforeOpen)) this.onBeforeOpen();
+    }
+
+    // 下载 app
+
+  }, {
+    key: 'downloadApp',
+    value: function downloadApp() {
+      var _download = this.download,
+          _download$ios = _download.ios,
+          ios = _download$ios === undefined ? '' : _download$ios,
+          _download$android = _download.android,
+          android = _download$android === undefined ? '' : _download$android,
+          _download$other = _download.other,
+          other = _download$other === undefined ? '' : _download$other;
+
+      if (isIOS) {
+        if (ios !== '') window.location.href = ios;
+        return;
+      }
+      if (isAndroid) {
+        if (android !== '') window.location.href = android;
+        return;
+      }
+      if (other !== '') window.location.href = other;
+    }
+  }]);
+
+  return OpenApp;
+}();
+
+function openapp(options) {
+  new OpenApp(options);
 }
 
-window.$openApp = openApp;
-
-exports.default = openApp;
+if (!window.$openapp) window.$openapp = openapp;
+exports.default = openapp;
 
 /***/ })
 /******/ ]);
