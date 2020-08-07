@@ -20,18 +20,20 @@ function getBrowerInfo() {
   }
 }
 
+const { isIOS, isAndroid, version } = getBrowerInfo()
+
 // 静默打开 app
 function silenceOpen(url) {
-  // iFrame 实测 Android 挺多浏览器不支持
-  // iFrame = document.createElement('iframe')
-  // iFrame.setAttribute('src', url)
-  // iFrame.setAttribute('style', 'display:none')
-  // iFrame.setAttribute('height', '0px')
-  // iFrame.setAttribute('width', '0px')
-  // iFrame.setAttribute('frameborder', '0')
-  // document.body.appendChild(iFrame)
-  // iFrame.parentNode.removeChild(iFrame)
-  // iFrame = null
+  if (isIOS) {
+    // 部分安卓浏览器, 禁止了 通过设置 iframe 的 src 属性实现 scheme
+    // 如: Chrome 但是安卓浏览器的 navigator.userAgent 都包含 Chrome 字段, 所以判断不了
+    let iFrame = document.createElement('iframe')
+    iFrame.style.display = 'none'
+    iFrame.src = url
+    document.documentElement.appendChild(iFrame)
+    document.documentElement.removeChild(iFrame)
+    return
+  }
 
   window.location.href = url
 }
@@ -64,9 +66,6 @@ function getDisabledApp(disabledApp) {
   }
   return ''
 }
-
-
-const { isIOS, isAndroid, version } = getBrowerInfo()
 
 class OpenApp {
   constructor({

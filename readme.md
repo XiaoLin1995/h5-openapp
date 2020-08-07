@@ -2,6 +2,10 @@
 
 > 网页唤醒 APP
 
+## 场景
+
+网页中点击按钮后, 可打开 app 并进入对应功能 (需 android, iOS 配合), 没有下载 app 则跳转至下载
+
 
 ## 安装
 
@@ -33,7 +37,7 @@ export default {
       // ... 如果对参数有其它逻辑处理, 在调用前处理
       openapp({
         scheme: '', // eg: myapp://path?key1=value1&key2=value2
-        deepLink: '', // iOS universal links (iOS 9+)
+        deepLink: '', // iOS universal links (iOS 9+) 当前页面域名与深链接域名需要不一致
         download: { // 默认 scheme 跳转无效，便前往下载, 设置 onTimeout 回调时, 不执行下载逻辑
           ios: '', // ios 下载链接
           android: '', // android 下载链接
