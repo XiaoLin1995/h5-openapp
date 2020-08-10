@@ -2,19 +2,24 @@ function isFunc(fun) {
   return typeof fun === 'function'
 }
 
+function isEmpty(str) {
+  if (typeof str === undefined || str === null || str === '') return true
+  return false
+}
+
 // 获取浏览器信息
 function getBrowerInfo() {
   const ua = window.navigator.userAgent.toLowerCase()
-  const isAndroid = /android/i.test(ua)
-  const isIOS = /iphone|ipad|ipod/i.test(ua)
+  const isAndroid = /Android/i.test(ua)
+  const isIOS = /iPhone|iPad|iPod/i.test(ua)
 
   let versionArr = []
-  if (isIOS) versionArr = ua.match(/os\s([0-9_]*)/)
-  if (isAndroid) versionArr = ua.match(/android\s([0-9\.]*)/)
+  if (isIOS) versionArr = ua.match(/OS\s([0-9_]*)/i)
+  if (isAndroid) versionArr = ua.match(/Android\s([0-9\.]*)/i)
   const version = (versionArr && versionArr.length) ? versionArr[1].replace(/_/g, '.') : ''
 
   return {
-  	isIOS,
+    isIOS,
   	isAndroid,
     version
   }
@@ -24,17 +29,14 @@ const { isIOS, isAndroid, version } = getBrowerInfo()
 
 // 静默打开 app
 function silenceOpen(url) {
-  if (isIOS) {
-    // 部分安卓浏览器, 禁止了 通过设置 iframe 的 src 属性实现 scheme
-    // 如: Chrome 但是安卓浏览器的 navigator.userAgent 都包含 Chrome 字段, 所以判断不了
-    let iFrame = document.createElement('iframe')
-    iFrame.style.display = 'none'
-    iFrame.src = url
-    document.documentElement.appendChild(iFrame)
-    document.documentElement.removeChild(iFrame)
-    return
-  }
-
+  // 出于对安全的考虑, 大部分浏览器禁止了 iframe 的 scheme 跳转
+  // let iFrame = document.createElement('iframe')
+  // iFrame.style.display = 'none'
+  // iFrame.src = url
+  // document.documentElement.appendChild(iFrame)
+  // setTimeout(() => {
+  //   document.documentElement.removeChild(iFrame)
+  // }, 0)
   window.location.href = url
 }
 
@@ -58,11 +60,11 @@ function bindSchemeOpenFail(callback, delay) {
 }
 
 // 获取是不是在被禁用的 app 中, 有则返回 app 的浏览器标示
-function getDisabledApp(disabledApp) {
-  const ua = window.navigator.userAgent.toLowerCase()
-  for (let i = 0; i < disabledApp.length; i++) {
-    const reg = new RegExp(disabledApp[i] + '/', 'i')
-    if (reg.test(ua)) return disabledApp[i]
+function getDisabledApp(disabledScheme) {
+  const ua = window.navigator.userAgent
+  for (let i = 0; i < disabledScheme.length; i++) {
+    const reg = new RegExp(disabledScheme[i], 'i')
+    if (reg.test(ua)) return disabledScheme[i]
   }
   return ''
 }
@@ -76,8 +78,8 @@ class OpenApp {
       android: '',
       other: ''
     },
-    delay = 3000,
-    disabledApp = [],
+    delay = 5000,
+    disabledScheme = [],
     onDisabled,
     onBeforeOpen,
     onTimeout
@@ -86,7 +88,7 @@ class OpenApp {
     this.deepLink = deepLink
     this.download = download
     this.delay = delay
-    this.isDisabled = disabledApp.length > 0 ? getDisabledApp(disabledApp) : ''
+    this.isDisabled = disabledScheme.length > 0 ? getDisabledApp(disabledScheme) : ''
     this.onDisabled = onDisabled
     this.onBeforeOpen = onBeforeOpen
     this.onTimeout = onTimeout
@@ -94,43 +96,30 @@ class OpenApp {
   }
 
   init() {
-    if (this.deepLink === '') {
-      this.notSetDeepLink()
-      return
-    }
-    this.isSetDeepLink()
-  }
-
-  // 设置了深链接
-  isSetDeepLink() {
-    const canDeepLink = isIOS && window.parseInt(version) >= 9 // ios9 以上支持深链接
-
-    if (canDeepLink) { // 支持深链接
-      this.beforeSilenceOpen()
-      silenceOpen(this.deepLink)
-      return
-    }
-
-    this.notSetDeepLink()
-  }
-
-  // 没有设置深链接
-  notSetDeepLink() {
     if (!isIOS && !isAndroid) {
       this.downloadApp()
       return
     }
-    if (this.isDisabled === '') {
-      this.beforeSilenceOpen()
-      silenceOpen(this.scheme)
-      this.schemeFailed()
+    if (this.isDisabled !== '') {
+      this.onSchemeDisabled()
       return
     }
-    this.schemeDisabled()
+    this.onSchemeOpen()
+  }
+
+  onSchemeOpen() {
+    this.beforeSilenceOpen()
+    const isGreatThanIOS8 = isIOS && window.parseInt(version) > 8 // ios9 及以上支持深链接
+    if (isGreatThanIOS8 && !isEmpty(this.deepLink)) {
+      silenceOpen(this.deepLink)
+      return
+    }
+    silenceOpen(this.scheme)
+    this.onSchemeFailed()
   }
 
   // scheme 打开失败
-  schemeFailed() {
+  onSchemeFailed() {
     bindSchemeOpenFail(() => {
       if (isFunc(this.onTimeout)) {
         this.onTimeout()
@@ -141,7 +130,7 @@ class OpenApp {
   }
 
   // 在 scheme 跳转被禁用的 app 里
-  schemeDisabled() {
+  onSchemeDisabled() {
     if (isFunc(this.onDisabled)) {
       this.onDisabled(this.isDisabled)
     } else {

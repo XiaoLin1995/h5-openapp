@@ -108,21 +108,28 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function isFunc(fun) {
   return typeof fun === 'function';
 }
 
+function isEmpty(str) {
+  if ((typeof str === 'undefined' ? 'undefined' : _typeof(str)) === undefined || str === null || str === '') return true;
+  return false;
+}
+
 // 获取浏览器信息
 function getBrowerInfo() {
   var ua = window.navigator.userAgent.toLowerCase();
-  var isAndroid = /android/i.test(ua);
-  var isIOS = /iphone|ipad|ipod/i.test(ua);
+  var isAndroid = /Android/i.test(ua);
+  var isIOS = /iPhone|iPad|iPod/i.test(ua);
 
   var versionArr = [];
-  if (isIOS) versionArr = ua.match(/os\s([0-9_]*)/);
-  if (isAndroid) versionArr = ua.match(/android\s([0-9\.]*)/);
+  if (isIOS) versionArr = ua.match(/OS\s([0-9_]*)/i);
+  if (isAndroid) versionArr = ua.match(/Android\s([0-9\.]*)/i);
   var version = versionArr && versionArr.length ? versionArr[1].replace(/_/g, '.') : '';
 
   return {
@@ -141,17 +148,14 @@ var _getBrowerInfo = getBrowerInfo(),
 
 
 function silenceOpen(url) {
-  if (isIOS) {
-    // 部分安卓浏览器, 禁止了 通过设置 iframe 的 src 属性实现 scheme
-    // 如: Chrome 但是安卓浏览器的 navigator.userAgent 都包含 Chrome 字段, 所以判断不了
-    var iFrame = document.createElement('iframe');
-    iFrame.style.display = 'none';
-    iFrame.src = url;
-    document.documentElement.appendChild(iFrame);
-    document.documentElement.removeChild(iFrame);
-    return;
-  }
-
+  // 出于对安全的考虑, 大部分浏览器禁止了 iframe 的 scheme 跳转
+  // let iFrame = document.createElement('iframe')
+  // iFrame.style.display = 'none'
+  // iFrame.src = url
+  // document.documentElement.appendChild(iFrame)
+  // setTimeout(() => {
+  //   document.documentElement.removeChild(iFrame)
+  // }, 0)
   window.location.href = url;
 }
 
@@ -175,11 +179,11 @@ function bindSchemeOpenFail(callback, delay) {
 }
 
 // 获取是不是在被禁用的 app 中, 有则返回 app 的浏览器标示
-function getDisabledApp(disabledApp) {
-  var ua = window.navigator.userAgent.toLowerCase();
-  for (var i = 0; i < disabledApp.length; i++) {
-    var reg = new RegExp(disabledApp[i] + '/', 'i');
-    if (reg.test(ua)) return disabledApp[i];
+function getDisabledApp(disabledScheme) {
+  var ua = window.navigator.userAgent;
+  for (var i = 0; i < disabledScheme.length; i++) {
+    var reg = new RegExp(disabledScheme[i], 'i');
+    if (reg.test(ua)) return disabledScheme[i];
   }
   return '';
 }
@@ -197,9 +201,9 @@ var OpenApp = function () {
       other: ''
     } : _ref$download,
         _ref$delay = _ref.delay,
-        delay = _ref$delay === undefined ? 3000 : _ref$delay,
-        _ref$disabledApp = _ref.disabledApp,
-        disabledApp = _ref$disabledApp === undefined ? [] : _ref$disabledApp,
+        delay = _ref$delay === undefined ? 5000 : _ref$delay,
+        _ref$disabledScheme = _ref.disabledScheme,
+        disabledScheme = _ref$disabledScheme === undefined ? [] : _ref$disabledScheme,
         onDisabled = _ref.onDisabled,
         onBeforeOpen = _ref.onBeforeOpen,
         onTimeout = _ref.onTimeout;
@@ -210,7 +214,7 @@ var OpenApp = function () {
     this.deepLink = deepLink;
     this.download = download;
     this.delay = delay;
-    this.isDisabled = disabledApp.length > 0 ? getDisabledApp(disabledApp) : '';
+    this.isDisabled = disabledScheme.length > 0 ? getDisabledApp(disabledScheme) : '';
     this.onDisabled = onDisabled;
     this.onBeforeOpen = onBeforeOpen;
     this.onTimeout = onTimeout;
@@ -220,53 +224,34 @@ var OpenApp = function () {
   _createClass(OpenApp, [{
     key: 'init',
     value: function init() {
-      if (this.deepLink === '') {
-        this.notSetDeepLink();
-        return;
-      }
-      this.isSetDeepLink();
-    }
-
-    // 设置了深链接
-
-  }, {
-    key: 'isSetDeepLink',
-    value: function isSetDeepLink() {
-      var canDeepLink = isIOS && window.parseInt(version) >= 9; // ios9 以上支持深链接
-
-      if (canDeepLink) {
-        // 支持深链接
-        this.beforeSilenceOpen();
-        silenceOpen(this.deepLink);
-        return;
-      }
-
-      this.notSetDeepLink();
-    }
-
-    // 没有设置深链接
-
-  }, {
-    key: 'notSetDeepLink',
-    value: function notSetDeepLink() {
       if (!isIOS && !isAndroid) {
         this.downloadApp();
         return;
       }
-      if (this.isDisabled === '') {
-        this.beforeSilenceOpen();
-        silenceOpen(this.scheme);
-        this.schemeFailed();
+      if (this.isDisabled !== '') {
+        this.onSchemeDisabled();
         return;
       }
-      this.schemeDisabled();
+      this.onSchemeOpen();
+    }
+  }, {
+    key: 'onSchemeOpen',
+    value: function onSchemeOpen() {
+      this.beforeSilenceOpen();
+      var isGreatThanIOS8 = isIOS && window.parseInt(version) > 8; // ios9 及以上支持深链接
+      if (isGreatThanIOS8 && !isEmpty(this.deepLink)) {
+        silenceOpen(this.deepLink);
+        return;
+      }
+      silenceOpen(this.scheme);
+      this.onSchemeFailed();
     }
 
     // scheme 打开失败
 
   }, {
-    key: 'schemeFailed',
-    value: function schemeFailed() {
+    key: 'onSchemeFailed',
+    value: function onSchemeFailed() {
       var _this = this;
 
       bindSchemeOpenFail(function () {
@@ -281,8 +266,8 @@ var OpenApp = function () {
     // 在 scheme 跳转被禁用的 app 里
 
   }, {
-    key: 'schemeDisabled',
-    value: function schemeDisabled() {
+    key: 'onSchemeDisabled',
+    value: function onSchemeDisabled() {
       if (isFunc(this.onDisabled)) {
         this.onDisabled(this.isDisabled);
       } else {
