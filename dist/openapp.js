@@ -126,6 +126,10 @@ function getBrowerInfo() {
   var ua = window.navigator.userAgent.toLowerCase();
   var isAndroid = /Android/i.test(ua);
   var isIOS = /iPhone|iPad|iPod/i.test(ua);
+  var isSafari = /Safari/i.test(ua);
+  var isApple = /Mac OS X/i.test(ua);
+  var isIPad = isSafari && !isIOS && isApple && 'ontouchend' in document;
+  if (isIPad) isIOS = true;
 
   var versionArr = [];
   if (isIOS) versionArr = ua.match(/OS\s([0-9_]*)/i);

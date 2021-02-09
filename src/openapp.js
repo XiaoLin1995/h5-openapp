@@ -11,7 +11,11 @@ function isEmpty(str) {
 function getBrowerInfo() {
   const ua = window.navigator.userAgent.toLowerCase()
   const isAndroid = /Android/i.test(ua)
-  const isIOS = /iPhone|iPad|iPod/i.test(ua)
+  let isIOS = /iPhone|iPad|iPod/i.test(ua)
+  const isSafari = /Safari/i.test(ua)
+  const isApple = /Mac OS X/i.test(ua)
+  const isIPad = isSafari && !isIOS && isApple && 'ontouchend' in document
+  if (isIPad) isIOS = true
 
   let versionArr = []
   if (isIOS) versionArr = ua.match(/OS\s([0-9_]*)/i)
